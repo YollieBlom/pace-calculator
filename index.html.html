@@ -1,0 +1,1795 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kaapsehoop 21.1km | Escarpment Pacing, Biomechanics & Quad-Load Simulator</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                        mono: ['JetBrains Mono', 'monospace'],
+                    },
+                    colors: {
+                        slate: {
+                            850: '#131c2e',
+                            900: '#0f172a',
+                            950: '#070b14',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #0f172a;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #334155;
+            border-radius: 3px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #475569;
+        }
+        input[type="range"] {
+            -webkit-appearance: none;
+            appearance: none;
+            background: transparent;
+            cursor: pointer;
+        }
+        input[type="range"]::-webkit-slider-runnable-track {
+            background: #1e293b;
+            height: 6px;
+            border-radius: 999px;
+            border: 1px solid #334155;
+        }
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            margin-top: -5px;
+            background-color: #38bdf8;
+            height: 14px;
+            width: 14px;
+            border-radius: 50%;
+            box-shadow: 0 0 8px rgba(56, 189, 248, 0.8);
+            transition: transform 0.15s ease, background-color 0.15s ease;
+        }
+        input[type="range"]::-webkit-slider-thumb:hover {
+            transform: scale(1.2);
+            background-color: #7dd3fc;
+        }
+        .canvas-grid-bg {
+            background-color: #090e1a;
+            background-image: 
+                linear-gradient(to right, rgba(51, 65, 85, 0.14) 1px, transparent 1px),
+                linear-gradient(to bottom, rgba(51, 65, 85, 0.14) 1px, transparent 1px);
+            background-size: 24px 24px;
+        }
+        .glass-panel {
+            background: rgba(15, 23, 42, 0.88);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(51, 65, 85, 0.65);
+        }
+    </style>
+</head>
+<body class="bg-slate-950 text-slate-100 font-sans antialiased selection:bg-sky-500 selection:text-white min-h-screen flex flex-col overflow-x-hidden">
+
+    <!-- Top Navigation & Kaapsehoop Course Header -->
+    <header class="border-b border-slate-800/80 bg-slate-900/95 backdrop-blur sticky top-0 z-30">
+        <div class="max-w-[1650px] mx-auto px-4 py-3 flex flex-wrap items-center justify-between gap-3">
+            <!-- Brand Title -->
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-500 via-emerald-500 to-sky-500 flex items-center justify-center shadow-lg shadow-emerald-500/20">
+                    <svg class="w-6 h-6 text-slate-950" fill="none" stroke="currentColor" stroke-width="2.3" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M3 7l6 6 4-4 8 8M21 10v7h-7" />
+                    </svg>
+                </div>
+                <div>
+                    <div class="flex flex-wrap items-center gap-2">
+                        <h1 class="font-bold text-base sm:text-lg tracking-tight text-white">Kaapsehoop Escarpment Simulator</h1>
+                        <span class="text-amber-300 font-mono text-[11px] uppercase px-2 py-0.5 bg-amber-500/15 border border-amber-500/30 rounded-md font-semibold">Mpumalanga • 1,260m → 675m ASL</span>
+                    </div>
+                    <p class="text-xs text-slate-400">Kaapsehoop Rd Escarpment Pass to Mbombela Stadium • Eccentric Quad Braking, GAP & Lowveld Thermal Drift</p>
+                </div>
+            </div>
+
+            <!-- Course Preset Selector, Reset & Export -->
+            <div class="flex flex-wrap items-center gap-2">
+                <div class="flex items-center bg-slate-850 px-2.5 py-1.5 rounded-xl border border-slate-700/80 text-xs gap-2">
+                    <label for="course-preset-select" class="text-slate-400 font-medium whitespace-nowrap">Race Profile:</label>
+                    <select id="course-preset-select" onchange="loadCoursePreset(this.value)" class="bg-slate-900 text-sky-300 font-semibold px-2.5 py-1 rounded-lg border border-slate-700 focus:outline-none focus:border-sky-500 cursor-pointer">
+                        <option value="kaapsehoop21" selected>Kaapsehoop 21.1km Half Marathon (Official Escarpment Drop)</option>
+                        <option value="kaapsehoop42">Kaapsehoop 42.2km Full Marathon (1,640m → 675m Qualifier)</option>
+                        <option value="kaapsehoop10">Kaapsehoop 10km Speed Drop (895m → 675m)</option>
+                        <option value="custom">Custom Drawn Profile (Freehand Sketch)</option>
+                    </select>
+                </div>
+
+                <!-- Reset to Official GPS Button -->
+                <button onclick="resetToOfficialProfile()" class="px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 text-xs font-medium transition flex items-center gap-1.5" title="Reset any hand-drawn changes back to official Kaapsehoop GPS elevation">
+                    <svg class="w-3.5 h-3.5 text-emerald-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                    </svg>
+                    <span>Reset Official GPS</span>
+                </button>
+
+                <!-- Export CSV Button -->
+                <button onclick="copySplitsToClipboard()" class="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-sky-500/20 hover:bg-sky-500/30 text-sky-300 border border-sky-500/40 text-xs font-semibold transition active:scale-95">
+                    <svg class="w-4 h-4 text-sky-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                    </svg>
+                    <span>Export Splits CSV</span>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Workspace Container -->
+    <main class="max-w-[1650px] w-full mx-auto px-4 py-4 flex-1 grid grid-cols-1 lg:grid-cols-12 gap-4">
+
+        <!-- Left Column: Target Finish, Kaapsehoop Strategy, Biomechanics & Quad Load Audit -->
+        <aside class="lg:col-span-3 flex flex-col gap-4">
+            
+            <!-- Target Time & Quick-Goal Presets Card -->
+            <div class="glass-panel rounded-2xl p-4 shadow-xl">
+                <div class="flex items-center justify-between mb-2.5">
+                    <h2 class="text-xs font-bold uppercase tracking-wider text-sky-400 flex items-center gap-1.5">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        Target Finish & Goal Presets
+                    </h2>
+                    <span id="avg-pace-badge" class="font-mono text-xs px-2 py-0.5 rounded bg-sky-500/15 text-sky-300 border border-sky-500/30 font-semibold">4:58 /km</span>
+                </div>
+
+                <!-- Target Goal Presets (Tailored for 21.1km Half Marathon) -->
+                <div class="mb-3">
+                    <label class="block text-[11px] text-slate-400 mb-1.5">Kaapsehoop Goal Presets (auto-scales to distance):</label>
+                    <div class="grid grid-cols-5 gap-1">
+                        <button onclick="setGoalPreset(84*60 + 50, 'sub85')" id="goal-sub85" class="goal-btn py-1.5 px-1 rounded-lg text-[11px] font-mono font-medium bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 transition text-center" title="Elite / PB Hunter">1:24:50</button>
+                        <button onclick="setGoalPreset(89*60 + 45, 'sub90')" id="goal-sub90" class="goal-btn py-1.5 px-1 rounded-lg text-[11px] font-mono font-medium bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 transition text-center" title="Sub-90 Fast Qualifier">1:29:45</button>
+                        <button onclick="setGoalPreset(104*60 + 45, 'sub105')" id="goal-sub105" class="goal-btn py-1.5 px-1 rounded-lg text-[11px] font-mono font-medium bg-sky-500/20 text-sky-300 border border-sky-500/40 transition text-center" title="Sub-1:45 Club Runner">1:44:45</button>
+                        <button onclick="setGoalPreset(119*60 + 30, 'sub120')" id="goal-sub120" class="goal-btn py-1.5 px-1 rounded-lg text-[11px] font-mono font-medium bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 transition text-center" title="Sub-2:00 Half Goal">1:59:30</button>
+                        <button onclick="setGoalPreset(134*60 + 30, 'sub135')" id="goal-sub135" class="goal-btn py-1.5 px-1 rounded-lg text-[11px] font-mono font-medium bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 transition text-center" title="Sub-2:15 Finish">2:14:30</button>
+                    </div>
+                </div>
+
+                <!-- Target Finish Time (HH : MM : SS) -->
+                <div class="mb-3.5">
+                    <div class="flex justify-between text-[11px] text-slate-400 mb-1">
+                        <span>Custom Finish Time (HH:MM:SS)</span>
+                        <span id="distance-readout" class="font-mono text-emerald-400 font-semibold">21.1 km</span>
+                    </div>
+                    <div class="grid grid-cols-3 gap-2">
+                        <div class="bg-slate-900 border border-slate-700/80 rounded-xl p-1.5 text-center focus-within:border-sky-500 transition">
+                            <span class="block text-[9px] uppercase text-slate-500 font-semibold">Hours</span>
+                            <input type="number" id="target-hr" min="0" max="24" value="1" class="w-full bg-transparent text-center font-mono text-base font-bold text-white focus:outline-none" oninput="onTargetTimeInput()">
+                        </div>
+                        <div class="bg-slate-900 border border-slate-700/80 rounded-xl p-1.5 text-center focus-within:border-sky-500 transition">
+                            <span class="block text-[9px] uppercase text-slate-500 font-semibold">Minutes</span>
+                            <input type="number" id="target-min" min="0" max="59" value="44" class="w-full bg-transparent text-center font-mono text-base font-bold text-white focus:outline-none" oninput="onTargetTimeInput()">
+                        </div>
+                        <div class="bg-slate-900 border border-slate-700/80 rounded-xl p-1.5 text-center focus-within:border-sky-500 transition">
+                            <span class="block text-[9px] uppercase text-slate-500 font-semibold">Seconds</span>
+                            <input type="number" id="target-sec" min="0" max="59" value="45" class="w-full bg-transparent text-center font-mono text-base font-bold text-white focus:outline-none" oninput="onTargetTimeInput()">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Kaapsehoop Pacing Strategy Selector -->
+                <div>
+                    <div class="flex items-center justify-between mb-1.5">
+                        <label class="text-xs text-slate-400">Escarpment Pacing Strategy</label>
+                        <span id="strategy-desc" class="text-[10px] text-emerald-400 font-semibold">Protects Quads for Km 19.8 Sting</span>
+                    </div>
+                    <div class="grid grid-cols-2 gap-1.5 bg-slate-900 p-1.5 rounded-xl border border-slate-800">
+                        <button onclick="setStrategy('quadsaver')" id="strat-quadsaver" class="py-1.5 px-2 rounded-lg text-[11px] font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 transition text-left">
+                            <span class="block">Quad Saver (Rec.)</span>
+                            <span class="text-[9px] text-slate-400 font-normal">Controlled Berlin drop</span>
+                        </button>
+                        <button onclick="setStrategy('effort')" id="strat-effort" class="py-1.5 px-2 rounded-lg text-[11px] font-semibold text-slate-300 hover:text-white transition text-left">
+                            <span class="block">Even GAP Effort</span>
+                            <span class="text-[9px] text-slate-400 font-normal">Constant metabolic output</span>
+                        </button>
+                        <button onclick="setStrategy('gravity')" id="strat-gravity" class="py-1.5 px-2 rounded-lg text-[11px] font-semibold text-slate-300 hover:text-white transition text-left">
+                            <span class="block">Gravity Assist PB</span>
+                            <span class="text-[9px] text-slate-400 font-normal">Bank fast early downhill</span>
+                        </button>
+                        <button onclick="setStrategy('pace')" id="strat-pace" class="py-1.5 px-2 rounded-lg text-[11px] font-semibold text-slate-300 hover:text-white transition text-left">
+                            <span class="block">Strictly Even Splits</span>
+                            <span class="text-[9px] text-slate-400 font-normal">Metronome km pace</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Runner Physiology & Lowveld Thermal Drift Card -->
+            <div class="glass-panel rounded-2xl p-4 shadow-xl">
+                <h2 class="text-xs font-bold uppercase tracking-wider text-emerald-400 flex items-center gap-1.5 mb-3">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+                    </svg>
+                    Runner Biomechanics & Lowveld Climate
+                </h2>
+
+                <!-- Runner Mass -->
+                <div class="mb-2.5">
+                    <div class="flex justify-between text-xs mb-1">
+                        <span class="text-slate-400">Athlete Mass (impacts braking kJ)</span>
+                        <span id="mass-val" class="font-mono text-slate-200 font-semibold">70 kg (154 lbs)</span>
+                    </div>
+                    <input type="range" id="mass-slider" min="42" max="115" step="1" value="70" class="w-full" oninput="updateBioParams()">
+                </div>
+
+                <!-- Base Flat Cadence -->
+                <div class="mb-2.5">
+                    <div class="flex justify-between text-xs mb-1">
+                        <span class="text-slate-400">Base Flat Cadence (SPM)</span>
+                        <span id="cadence-val" class="font-mono text-slate-200 font-semibold">176 spm</span>
+                    </div>
+                    <input type="range" id="cadence-slider" min="150" max="205" step="1" value="176" class="w-full" oninput="updateBioParams()">
+                </div>
+
+                <!-- Footwear / Economy Factor -->
+                <div class="mb-3">
+                    <div class="flex justify-between text-xs mb-1">
+                        <span class="text-slate-400">Shoe Cushioning & Economy</span>
+                        <span id="economy-val" class="font-mono text-emerald-400 font-semibold">0.98x (Carbon Super-Shoe)</span>
+                    </div>
+                    <input type="range" id="economy-slider" min="0.88" max="1.12" step="0.01" value="0.98" class="w-full" oninput="updateBioParams()">
+                </div>
+
+                <!-- Lowveld Micro-Climate Thermal Drift Toggle -->
+                <div class="p-2.5 rounded-xl bg-gradient-to-r from-slate-900 via-slate-900 to-amber-950/30 border border-amber-500/30">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <span class="text-xs font-semibold text-amber-300 flex items-center gap-1.5">
+                                <svg class="w-3.5 h-3.5 text-amber-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+                                </svg>
+                                Lowveld Thermal Drift
+                            </span>
+                            <span class="text-[10px] text-slate-400 block mt-0.5">13°C escarpment mist → 26°C Mbombela humidity</span>
+                        </div>
+                        <label class="relative inline-flex items-center cursor-pointer">
+                            <input type="checkbox" id="thermal-toggle" checked class="sr-only peer" onchange="recalculateSimulation()">
+                            <div class="w-9 h-5 bg-slate-700 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-amber-500"></div>
+                        </label>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Whole-Course Escarpment & Eccentric Quad Audit Card -->
+            <div class="glass-panel rounded-2xl p-4 shadow-xl flex-1 flex flex-col justify-between">
+                <div>
+                    <div class="flex items-center justify-between mb-2.5">
+                        <h2 class="text-xs font-bold uppercase tracking-wider text-purple-400 flex items-center gap-1.5">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
+                            </svg>
+                            Escarpment & Quad Braking Audit
+                        </h2>
+                        <span id="doms-risk-badge" class="text-[10px] font-mono font-bold px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30">MODERATE QUAD LOAD</span>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-2">
+                        <div class="bg-slate-900/90 border border-slate-800/90 rounded-xl p-2.5">
+                            <span class="text-[10px] text-slate-400 block">Ascent / Total Drop</span>
+                            <div class="font-mono text-xs sm:text-sm font-bold text-white mt-0.5">
+                                <span id="stat-gain" class="text-rose-400">+205m</span> / <span id="stat-loss" class="text-cyan-400">-790m</span>
+                            </div>
+                        </div>
+                        <div class="bg-slate-900/90 border border-slate-800/90 rounded-xl p-2.5">
+                            <span class="text-[10px] text-slate-400 block">Net Elevation Drop</span>
+                            <div id="stat-net-drop" class="font-mono text-xs sm:text-sm font-bold text-emerald-400 mt-0.5">-585m (1260→675m)</div>
+                        </div>
+                        <div class="bg-slate-900/90 border border-slate-800/90 rounded-xl p-2.5">
+                            <span class="text-[10px] text-slate-400 block">Eccentric Braking Work</span>
+                            <div id="stat-braking-kj" class="font-mono text-xs sm:text-sm font-bold text-purple-300 mt-0.5">342 kJ Absorbed</div>
+                        </div>
+                        <div class="bg-slate-900/90 border border-slate-800/90 rounded-xl p-2.5">
+                            <span class="text-[10px] text-slate-400 block">Gravity Net Time Bonus</span>
+                            <div id="stat-gravity-bonus" class="font-mono text-xs sm:text-sm font-bold text-sky-300 mt-0.5">-2m 44s vs Flat</div>
+                        </div>
+                        <div class="bg-slate-900/90 border border-slate-800/90 rounded-xl p-2.5">
+                            <span class="text-[10px] text-slate-400 block">Equivalent Flat GAP</span>
+                            <div id="stat-gap" class="font-mono text-xs sm:text-sm font-bold text-indigo-300 mt-0.5">5:06 /km</div>
+                        </div>
+                        <div class="bg-slate-900/90 border border-slate-800/90 rounded-xl p-2.5">
+                            <span class="text-[10px] text-slate-400 block">Total Metabolic Burn</span>
+                            <div id="stat-kcal" class="font-mono text-xs sm:text-sm font-bold text-amber-300 mt-0.5">1,295 kcal</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Km 19.8 Sting Readiness Indicator -->
+                <div class="mt-3 pt-2.5 border-t border-slate-800/80">
+                    <div class="flex justify-between text-[11px] mb-1">
+                        <span class="text-slate-400">Km 19.8 "Heartbreak Sting" Penalty:</span>
+                        <span id="sting-penalty-readout" class="font-mono font-bold text-rose-400">+24 sec/km slowdown</span>
+                    </div>
+                    <p class="text-[10px] text-slate-400 leading-relaxed">
+                        Unchecked speed down Berlin Plantation (-6.5%) causes eccentric micro-tears in the vastus lateralis, amplifying pace loss on the +4.2% climb at 19.8 km.
+                    </p>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Center & Right Column: Interactive Escarpment Canvas, Telemetry & 21.1km Splits -->
+        <section class="lg:col-span-9 flex flex-col gap-4">
+
+            <!-- Interactive Elevation & Pacing Canvas Card -->
+            <div class="glass-panel rounded-2xl p-4 shadow-xl flex flex-col">
+                <!-- Canvas Toolbar -->
+                <div class="flex flex-wrap items-center justify-between gap-2 mb-3">
+                    <div class="flex items-center gap-2">
+                        <span class="flex h-2.5 w-2.5 relative">
+                            <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-cyan-400 opacity-75"></span>
+                            <span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-cyan-500"></span>
+                        </span>
+                        <h3 class="text-sm font-bold text-white">Kaapsehoop Escarpment Profile & Landmark Editor</h3>
+                        <span class="hidden xl:inline-block text-xs text-slate-400 ml-1">— Hover to inspect landmarks or click & drag to sculpt custom hills</span>
+                    </div>
+
+                    <div class="flex flex-wrap items-center gap-1.5">
+                        <!-- Brush Width Control -->
+                        <div class="flex items-center bg-slate-900 px-2.5 py-1 rounded-lg border border-slate-800 text-xs gap-2">
+                            <span class="text-slate-400">Sculpt Brush:</span>
+                            <input type="range" id="brush-size" min="2" max="20" value="8" class="w-16">
+                        </div>
+
+                        <button onclick="smoothTerrain()" class="px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs font-medium text-slate-200 border border-slate-700 transition flex items-center gap-1" title="Smooth out jagged peaks">
+                            <svg class="w-3.5 h-3.5 text-sky-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M4 12c2.5-5 5.5-5 8 0s5.5 5 8 0" />
+                            </svg>
+                            Smooth
+                        </button>
+
+                        <!-- Ghost Pacer Speed Select -->
+                        <select id="sim-speed-select" class="bg-slate-900 text-slate-300 text-xs px-2 py-1.5 rounded-lg border border-slate-700 focus:outline-none">
+                            <option value="0.4">1x Sim Speed</option>
+                            <option value="0.85" selected>2x Sim Speed</option>
+                            <option value="1.8">4x Sim Speed</option>
+                        </select>
+
+                        <button id="sim-btn" onclick="toggleGhostSimulation()" class="px-3 py-1.5 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-semibold text-xs transition flex items-center gap-1.5 shadow-lg shadow-emerald-500/20">
+                            <svg class="w-3.5 h-3.5 fill-current" viewBox="0 0 20 20">
+                                <path d="M6.3 2.841A1.5 1.5 0 004 4.11V15.89a1.5 1.5 0 002.3 1.269l9.344-5.89a1.5 1.5 0 000-2.538L6.3 2.84z" />
+                            </svg>
+                            <span id="sim-btn-text">Run Ghost Pacer</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Main HTML5 Canvas Wrapper -->
+                <div class="relative w-full h-[340px] sm:h-[380px] rounded-xl overflow-hidden border border-slate-800 canvas-grid-bg select-none">
+                    <canvas id="elevation-canvas" class="w-full h-full block cursor-crosshair touch-none"></canvas>
+
+                    <!-- Floating Legend Overlay -->
+                    <div class="absolute top-2.5 right-14 pointer-events-none hidden md:flex flex-wrap items-center gap-3 bg-slate-950/85 backdrop-blur-md px-3 py-1.5 rounded-lg border border-slate-800/90 text-[11px]">
+                        <span class="flex items-center gap-1.5 text-slate-300">
+                            <span class="w-2.5 h-2.5 rounded-sm bg-purple-500 inline-block"></span> Steep Braking (&lt;-5%)
+                        </span>
+                        <span class="flex items-center gap-1.5 text-slate-300">
+                            <span class="w-2.5 h-2.5 rounded-sm bg-cyan-400 inline-block"></span> Fast Drop (-2% to -5%)
+                        </span>
+                        <span class="flex items-center gap-1.5 text-slate-300">
+                            <span class="w-2.5 h-2.5 rounded-sm bg-emerald-500 inline-block"></span> Flat/Mild (-2% to +2%)
+                        </span>
+                        <span class="flex items-center gap-1.5 text-slate-300">
+                            <span class="w-2.5 h-2.5 rounded-sm bg-rose-500 inline-block"></span> Climb (&gt;+2%)
+                        </span>
+                        <span class="flex items-center gap-1.5 text-sky-300 font-mono">
+                            <span class="w-4 h-0.5 bg-sky-400 inline-block"></span> Pace Curve
+                        </span>
+                    </div>
+                </div>
+
+                <!-- Real-Time Point Telemetry Inspector Bar -->
+                <div class="mt-3 grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-2 pt-2 border-t border-slate-800/80">
+                    <div class="bg-slate-900/90 px-2.5 py-2 rounded-lg border border-slate-800/80">
+                        <span class="text-[10px] uppercase tracking-wider text-slate-400 block">Distance & Sector</span>
+                        <span id="insp-dist" class="font-mono text-xs sm:text-sm font-bold text-white truncate block">4.50 km</span>
+                    </div>
+                    <div class="bg-slate-900/90 px-2.5 py-2 rounded-lg border border-slate-800/80">
+                        <span class="text-[10px] uppercase tracking-wider text-slate-400 block">Altitude ASL</span>
+                        <span id="insp-elev" class="font-mono text-xs sm:text-sm font-bold text-slate-200">1,045 m</span>
+                    </div>
+                    <div class="bg-slate-900/90 px-2.5 py-2 rounded-lg border border-slate-800/80">
+                        <span class="text-[10px] uppercase tracking-wider text-slate-400 block">Slope Grade</span>
+                        <span id="insp-grade" class="font-mono text-xs sm:text-sm font-bold text-purple-400">-6.5%</span>
+                    </div>
+                    <div class="bg-slate-900/90 px-2.5 py-2 rounded-lg border border-slate-800/80">
+                        <span class="text-[10px] uppercase tracking-wider text-slate-400 block">Target Pace</span>
+                        <span id="insp-pace" class="font-mono text-xs sm:text-sm font-bold text-sky-400">4:38 /km</span>
+                    </div>
+                    <div class="bg-slate-900/90 px-2.5 py-2 rounded-lg border border-slate-800/80">
+                        <span class="text-[10px] uppercase tracking-wider text-slate-400 block">Grade Adj. Pace</span>
+                        <span id="insp-gap" class="font-mono text-xs sm:text-sm font-bold text-indigo-300">5:09 /km</span>
+                    </div>
+                    <div class="bg-slate-900/90 px-2.5 py-2 rounded-lg border border-slate-800/80">
+                        <span class="text-[10px] uppercase tracking-wider text-slate-400 block">Metabolic Cost</span>
+                        <span id="insp-cr" class="font-mono text-xs sm:text-sm font-bold text-amber-400">2.45 J/kg/m</span>
+                    </div>
+                    <div class="bg-slate-900/90 px-2.5 py-2 rounded-lg border border-slate-800/80">
+                        <span class="text-[10px] uppercase tracking-wider text-slate-400 block">Cadence / Stride</span>
+                        <span id="insp-stride" class="font-mono text-xs sm:text-sm font-bold text-emerald-300">181 / 1.99m</span>
+                    </div>
+                    <div class="bg-slate-900/90 px-2.5 py-2 rounded-lg border border-slate-800/80">
+                        <span class="text-[10px] uppercase tracking-wider text-slate-400 block">Quad Fatigue / Temp</span>
+                        <span id="insp-quad-temp" class="font-mono text-xs sm:text-sm font-bold text-purple-300">24% • 16.2°C</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Bottom Section: Full Km-by-Km Split Table & Biomechanical Downhill Gauge -->
+            <div class="grid grid-cols-1 xl:grid-cols-12 gap-4 flex-1">
+                
+                <!-- Full Km-by-Km Split Forecast Table (8 cols) -->
+                <div class="xl:col-span-8 glass-panel rounded-2xl p-4 shadow-xl flex flex-col">
+                    <div class="flex flex-wrap items-center justify-between gap-2 mb-3">
+                        <div>
+                            <h3 class="text-sm font-bold text-white flex items-center gap-2">
+                                Km-by-Km Escarpment Split Forecast
+                                <span id="split-count-badge" class="text-xs font-mono px-2 py-0.5 rounded bg-slate-800 text-sky-300 border border-slate-700">21.1 km (22 Splits)</span>
+                            </h3>
+                            <p class="text-xs text-slate-400">Click any kilometer row to highlight that sector and inspect its grade & quad load</p>
+                        </div>
+                        <div class="flex items-center gap-3 text-xs font-mono">
+                            <span id="toast-msg" class="text-emerald-400 font-semibold opacity-0 transition-opacity duration-300">Splits CSV Copied!</span>
+                            <span class="text-slate-400">Mbombela Finish: <strong id="table-finish-time" class="text-sky-400 text-sm">01:44:45</strong></span>
+                        </div>
+                    </div>
+
+                    <div class="overflow-x-auto overflow-y-auto max-h-[320px] rounded-xl border border-slate-800/90">
+                        <table class="w-full text-left border-collapse">
+                            <thead class="bg-slate-900/95 sticky top-0 z-10 text-[10px] uppercase tracking-wider text-slate-400 border-b border-slate-800">
+                                <tr>
+                                    <th class="py-2.5 px-2.5 font-semibold">KM</th>
+                                    <th class="py-2.5 px-2.5 font-semibold">Landmark / Course Sector</th>
+                                    <th class="py-2.5 px-2.5 font-semibold">Δ Elev</th>
+                                    <th class="py-2.5 px-2.5 font-semibold">Grade</th>
+                                    <th class="py-2.5 px-2.5 font-semibold">Split Pace</th>
+                                    <th class="py-2.5 px-2.5 font-semibold">GAP</th>
+                                    <th class="py-2.5 px-2.5 font-semibold">SPM / Stride</th>
+                                    <th class="py-2.5 px-2.5 font-semibold">Kcal</th>
+                                    <th class="py-2.5 px-2.5 font-semibold">Quad Load</th>
+                                    <th class="py-2.5 px-2.5 font-semibold text-right">Elapsed</th>
+                                </tr>
+                            </thead>
+                            <tbody id="splits-tbody" class="divide-y divide-slate-800/60 text-xs font-mono">
+                                <!-- Populated dynamically -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Biomechanical & Eccentric Quad Response Gauge (4 cols) -->
+                <div class="xl:col-span-4 glass-panel rounded-2xl p-4 shadow-xl flex flex-col justify-between">
+                    <div>
+                        <div class="flex items-center justify-between mb-1">
+                            <h3 class="text-sm font-bold text-white">Biomechanical & Quad Response</h3>
+                            <span id="landmark-pill" class="text-[10px] font-mono px-2 py-0.5 rounded bg-cyan-500/15 text-cyan-300 border border-cyan-500/30">Berlin Plantation</span>
+                        </div>
+                        <p class="text-xs text-slate-400 mb-3">Real-time kinematic & eccentric muscle telemetry at cursor</p>
+
+                        <!-- Visual Runner Slope Indicator -->
+                        <div class="bg-slate-900/90 rounded-xl p-3 border border-slate-800 mb-3 flex items-center justify-between gap-2">
+                            <div>
+                                <span class="text-[10px] uppercase tracking-wider text-slate-400 block">Active Biomechanical Regime</span>
+                                <span id="regime-title" class="text-sm font-bold text-purple-400">Steep Plantation Braking</span>
+                                <span id="regime-tip" class="text-[11px] text-slate-300 block mt-0.5">Keep cadence high (~180+ spm), land midfoot under hips to spare quads</span>
+                            </div>
+                            <div class="w-12 h-12 shrink-0 rounded-xl bg-slate-950 border border-slate-800 flex items-center justify-center">
+                                <svg id="slope-arrow-svg" class="w-7 h-7 text-cyan-400 transition-transform duration-150" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M5 12h14M13 6l6 6-6 6" />
+                                </svg>
+                            </div>
+                        </div>
+
+                        <!-- Live Comparison Bars -->
+                        <div class="space-y-2.5">
+                            <div>
+                                <div class="flex justify-between text-xs mb-1">
+                                    <span class="text-slate-400">Cumulative Eccentric Quad Fatigue</span>
+                                    <span id="gauge-quad" class="font-mono font-semibold text-purple-300">28% Capacity Used</span>
+                                </div>
+                                <div class="w-full h-2 bg-slate-900 rounded-full overflow-hidden border border-slate-800">
+                                    <div id="bar-quad" class="h-full bg-gradient-to-r from-cyan-500 via-purple-500 to-rose-500 transition-all duration-150" style="width: 28%"></div>
+                                </div>
+                            </div>
+
+                            <div>
+                                <div class="flex justify-between text-xs mb-1">
+                                    <span class="text-slate-400">Cadence Shift vs Flat Base</span>
+                                    <span id="gauge-cadence" class="font-mono font-semibold text-sky-300">+4 spm (180 spm)</span>
+                                </div>
+                                <div class="w-full h-2 bg-slate-900 rounded-full overflow-hidden border border-slate-800">
+                                    <div id="bar-cadence" class="h-full bg-gradient-to-r from-sky-500 to-emerald-400 transition-all duration-150" style="width: 60%"></div>
+                                </div>
+                            </div>
+
+                            <div>
+                                <div class="flex justify-between text-xs mb-1">
+                                    <span class="text-slate-400">Stride Length Adaptation</span>
+                                    <span id="gauge-stride" class="font-mono font-semibold text-emerald-300">1.21 m (+5%)</span>
+                                </div>
+                                <div class="w-full h-2 bg-slate-900 rounded-full overflow-hidden border border-slate-800">
+                                    <div id="bar-stride" class="h-full bg-gradient-to-r from-indigo-500 to-sky-400 transition-all duration-150" style="width: 55%"></div>
+                                </div>
+                            </div>
+
+                            <div>
+                                <div class="flex justify-between text-xs mb-1">
+                                    <span class="text-slate-400">Minetti Metabolic Cost Multiplier</span>
+                                    <span id="gauge-metabolic" class="font-mono font-semibold text-amber-300">0.68x Flat Cost</span>
+                                </div>
+                                <div class="w-full h-2 bg-slate-900 rounded-full overflow-hidden border border-slate-800">
+                                    <div id="bar-metabolic" class="h-full bg-gradient-to-r from-emerald-500 via-amber-500 to-rose-500 transition-all duration-150" style="width: 32%"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mt-3 pt-2.5 border-t border-slate-800/80 flex items-center justify-between text-[11px] text-slate-400">
+                        <span>VO₂ Demand: <strong id="vo2-readout" class="font-mono text-white">38.2 ml/kg/min</strong></span>
+                        <span>Burn Power: <strong id="power-readout" class="font-mono text-amber-300">11.4 kcal/min</strong></span>
+                    </div>
+                </div>
+
+            </div>
+        </section>
+
+    </main>
+
+    <script>
+        /*******************************************************************************
+         * KAAPSEHOOP 21.1KM ESCARPMENT PACING, BIOMECHANICS & QUAD-LOAD ENGINE
+         * Models the authentic elevation profile from Kaapsehoop Rd (~1,260m ASL)
+         * through Berlin Pine Plantations down to Mbombela Stadium (~675m ASL),
+         * including Minetti Cr(i), Cumulative Eccentric Quad Braking Work (kJ),
+         * Lowveld Thermal Drift (13°C -> 26°C), and the Km 19.8 Heartbreak Sting.
+         *******************************************************************************/
+
+        const NUM_NODES = 212; // High resolution (~100m per node for 21.1km)
+
+        // Authentic Landmarks for Kaapsehoop Courses
+        const COURSE_LANDMARKS = {
+            kaapsehoop21: [
+                { km: 0.0, title: "21.1km Start (Kaapsehoop Rd)", short: "Start 1,260m", note: "Cool escarpment mist (~13°C), gentle roll into pass" },
+                { km: 4.5, title: "Berlin Plantation Steep Drop", short: "Berlin Drop (-6.5%)", note: "Sustained steep downhill (-6.5%); high eccentric quad braking" },
+                { km: 9.2, title: "Escarpment Pass Roller", short: "Pass Roller", note: "Short sharp climb (+3.2%) interrupts the long descent" },
+                { km: 13.5, title: "Lowveld Valley Transition", short: "Valley Floor", note: "Fast R37/N4 valley transition; air warms noticeably" },
+                { km: 17.8, title: "N4 / Mataffin Underpass Rollers", short: "Mataffin Rollers", note: "Undulating suburban/industrial rollers on tired legs" },
+                { km: 19.8, title: "Mbombela 'Heartbreak' Sting", short: "Km 19.8 Sting (+4.2%)", note: "Notorious +4.2% sting climb tests quad fatigue before stadium" },
+                { km: 21.1, title: "Mbombela Stadium Finish", short: "Finish 675m", note: "Fast flat/slight drop into Mbombela Stadium precinct" }
+            ],
+            kaapsehoop42: [
+                { km: 0.0, title: "42.2km Start (Kaapsehoop Village)", short: "Start 1,640m", note: "High altitude mist belt start near Kaapsehoop wild horses" },
+                { km: 8.5, title: "Escarpment Rim Forest Pass", short: "Forest Rim", note: "Sweeping escarpment drop through indigenous & pine forest" },
+                { km: 21.1, title: "Halfway Mark (21.1km Start Point)", short: "Halfway 1,260m", note: "Passes the Half Marathon start line on Kaapsehoop Rd" },
+                { km: 25.6, title: "Berlin Plantation Steep Drop", short: "Berlin Drop", note: "Steep -6.5% escarpment plunge; critical quad preservation zone" },
+                { km: 34.6, title: "Lowveld Valley Floor", short: "Valley Floor", note: "Entering warm Mbombela valley; hydration critical" },
+                { km: 40.9, title: "Mbombela 'Heartbreak' Sting", short: "Km 40.9 Sting", note: "Brutal late climb before Mbombela Stadium" },
+                { km: 42.2, title: "Mbombela Stadium Finish", short: "Finish 675m", note: "Official Comrades & Two Oceans Qualifier Finish" }
+            ],
+            kaapsehoop10: [
+                { km: 0.0, title: "10km Start (Lower Escarpment)", short: "Start 895m", note: "Fast downhill start towards Lowveld valley" },
+                { km: 3.5, title: "Valley Approach Drop", short: "Fast Drop", note: "High-speed gravity-assisted section" },
+                { km: 6.7, title: "Mataffin Underpass Rollers", short: "Mataffin Rollers", note: "Rolling bridges and underpasses" },
+                { km: 8.7, title: "Mbombela 'Heartbreak' Sting", short: "Km 8.7 Sting", note: "Sharp +4.2% sting climb before the stadium" },
+                { km: 10.0, title: "Mbombela Stadium Finish", short: "Finish 675m", note: "Fast sprint to Mbombela Stadium finish line" }
+            ],
+            custom: [
+                { km: 0.0, title: "Course Start", short: "Start", note: "Custom sculpted start" },
+                { km: 10.5, title: "Midpoint Check", short: "Midpoint", note: "Custom mid-course check" },
+                { km: 21.1, title: "Course Finish", short: "Finish", note: "Custom sculpted finish" }
+            ]
+        };
+
+        const state = {
+            presetKey: 'kaapsehoop21',
+            distanceKm: 21.0975,           // Default: Kaapsehoop Half Marathon (21.1 km)
+            targetSeconds: 1 * 3600 + 44 * 60 + 45, // Default: 01:44:45
+            strategy: 'quadsaver',         // 'quadsaver', 'effort', 'gravity', 'pace'
+            runnerMassKg: 70,
+            baseCadence: 176,
+            economyFactor: 0.98,
+            minElevASL: 640,               // Floor elevation on canvas (m ASL)
+            maxElevASL: 1340,              // Ceiling elevation on canvas (m ASL)
+            elevASL: new Float32Array(NUM_NODES), // Actual elevation in meters ASL at each node
+            pointStats: [],
+            splits: [],
+            hoverIndex: 45,                // Default hover at 4.5km Berlin Plantation Drop
+            selectedSplitIdx: -1,
+            isDrawing: false,
+            lastDrawIndex: -1,
+            lastDrawASL: 1000,
+            simRunning: false,
+            simProgressIndex: 0,
+            simAnimId: null
+        };
+
+        const canvas = document.getElementById('elevation-canvas');
+        const ctx = canvas.getContext('2d');
+
+        /**
+         * Generates the authentic Kaapsehoop 21.1km Half Marathon elevation profile (in meters ASL)
+         * Calibrated so:
+         * - Start (0.0 km): ~1,260m ASL
+         * - Finish (21.1 km): ~675m ASL (Net drop = -585m)
+         * - Total cumulative ascent: ~205m, Total cumulative descent: ~790m
+         */
+        function generateKaapsehoop21Profile() {
+            state.minElevASL = 630;
+            state.maxElevASL = 1330;
+            state.distanceKm = 21.0975;
+
+            // Piecewise anchor backbone (km -> base elevation m ASL)
+            const anchors = [
+                { km: 0.0,  asl: 1260 },
+                { km: 1.4,  asl: 1236 }, // Early escarpment roll (+12m bump embedded below)
+                { km: 3.0,  asl: 1155 }, // Entering Berlin Pine Plantation pass
+                { km: 6.2,  asl: 952  }, // Sustained -6.4% Berlin plantation plunge
+                { km: 8.4,  asl: 842  }, // Bottom of upper pass
+                { km: 9.5,  asl: 882  }, // +40m Escarpment Pass Roller climb
+                { km: 12.8, asl: 736  }, // Sweeping drop towards Lowveld valley
+                { km: 13.9, asl: 760  }, // +24m Valley transition roller
+                { km: 16.5, asl: 688  }, // Fast run-in along R37 / N4 approach
+                { km: 17.8, asl: 722  }, // +34m N4 / Mataffin bridge roller
+                { km: 19.0, asl: 668  }, // Dip before the final sting
+                { km: 20.1, asl: 716  }, // +48m notorious "Heartbreak Sting" (+4.3% grade)
+                { km: 21.1, asl: 675  }  // Drop into Mbombela Stadium finish (~675m ASL)
+            ];
+
+            for (let i = 0; i < NUM_NODES; i++) {
+                const km = (i / (NUM_NODES - 1)) * 21.1;
+                // Find surrounding anchors
+                let a0 = anchors[0], a1 = anchors[anchors.length - 1];
+                for (let j = 0; j < anchors.length - 1; j++) {
+                    if (km >= anchors[j].km && km <= anchors[j + 1].km) {
+                        a0 = anchors[j];
+                        a1 = anchors[j + 1];
+                        break;
+                    }
+                }
+                const span = Math.max(0.001, a1.km - a0.km);
+                const t = (km - a0.km) / span;
+                // Cosine smooth interpolation between anchors
+                const smoothT = 0.5 * (1 - Math.cos(t * Math.PI));
+                let asl = a0.asl + (a1.asl - a0.asl) * smoothT;
+
+                // Add realistic micro-undulations (escarpment road contours) so total gain is ~205m and loss ~790m
+                const microRollers = 
+                    11.5 * Math.sin(km * 1.85) * Math.exp(-Math.pow((km - 11.0) / 8.5, 2)) +
+                    6.8 * Math.sin(km * 3.4);
+
+                // Taper micro-rollers to 0 at exact start and finish so endpoints are exact (1260m and 675m)
+                const endTaper = Math.sin((i / (NUM_NODES - 1)) * Math.PI);
+                state.elevASL[i] = asl + microRollers * endTaper;
+            }
+        }
+
+        /**
+         * Generates the Kaapsehoop 42.2km Full Marathon Profile (1,640m -> 675m ASL)
+         */
+        function generateKaapsehoop42Profile() {
+            state.minElevASL = 620;
+            state.maxElevASL = 1720;
+            state.distanceKm = 42.195;
+
+            for (let i = 0; i < NUM_NODES; i++) {
+                const frac = i / (NUM_NODES - 1);
+                const km = frac * 42.2;
+                // Upper 21.1km drops from 1640m at Kaapsehoop village to 1260m at Half Marathon start, with rollers
+                if (km <= 21.1) {
+                    const uFrac = km / 21.1;
+                    const base = 1640 - (1640 - 1260) * Math.pow(uFrac, 0.92);
+                    const rollers = 22 * Math.sin(uFrac * Math.PI * 5) * Math.sin(uFrac * Math.PI);
+                    state.elevASL[i] = base + rollers;
+                } else {
+                    // Second half follows the 21.1km Half Marathon escarpment drop
+                    const lKm = km - 21.1;
+                    const lFrac = lKm / 21.1;
+                    const sting = 46 * Math.exp(-Math.pow((lKm - 19.8) / 0.75, 2));
+                    const passClimb = 38 * Math.exp(-Math.pow((lKm - 9.2) / 0.9, 2));
+                    const mataffin = 28 * Math.exp(-Math.pow((lKm - 17.6) / 0.7, 2));
+                    const baseDrop = 1260 - (1260 - 675) * Math.pow(lFrac, 0.72);
+                    state.elevASL[i] = baseDrop + passClimb + mataffin + sting;
+                }
+            }
+            state.elevASL[0] = 1640;
+            state.elevASL[NUM_NODES - 1] = 675;
+        }
+
+        /**
+         * Generates the Kaapsehoop 10km Speed Drop Profile (895m -> 675m ASL)
+         */
+        function generateKaapsehoop10Profile() {
+            state.minElevASL = 630;
+            state.maxElevASL = 960;
+            state.distanceKm = 10.0;
+
+            for (let i = 0; i < NUM_NODES; i++) {
+                const frac = i / (NUM_NODES - 1);
+                const km = frac * 10.0;
+                const base = 895 - (895 - 675) * Math.pow(frac, 0.78);
+                const mataffin = 22 * Math.exp(-Math.pow((km - 6.7) / 0.55, 2));
+                const sting = 38 * Math.exp(-Math.pow((km - 8.7) / 0.5, 2));
+                state.elevASL[i] = base + mataffin + sting;
+            }
+            state.elevASL[0] = 895;
+            state.elevASL[NUM_NODES - 1] = 675;
+        }
+
+        /**
+         * Minetti et al. (2002) polynomial for metabolic energy cost of running Cr(i) in J/(kg*m)
+         */
+        function calculateMinettiCr(g) {
+            const i = Math.max(-0.40, Math.min(0.40, g));
+            const i2 = i * i;
+            const i3 = i2 * i;
+            const i4 = i3 * i;
+            const i5 = i4 * i;
+            const cr = 155.4 * i5 - 30.4 * i4 - 43.3 * i3 + 46.3 * i2 + 19.5 * i + 3.6;
+            return Math.max(1.55, cr) * state.economyFactor;
+        }
+
+        /**
+         * Grade Adjusted Speed Factor (ratio of speed at grade g vs flat at equal metabolic effort)
+         * Accounts for gravity assistance down to -6% and eccentric braking penalty below -6.5%
+         */
+        function getGradeSpeedFactor(g) {
+            const flatCr = 3.6 * state.economyFactor;
+            const slopeCr = calculateMinettiCr(g);
+            if (g < 0) {
+                // Downhill speed peaks around -6% to -7%, then eccentric braking limits stride
+                const bonus = 1.0 - (g * 1.95) - (g * g * 19.0);
+                return Math.max(0.75, Math.min(1.135, bonus));
+            } else {
+                return Math.max(0.35, Math.pow(flatCr / slopeCr, 0.76));
+            }
+        }
+
+        /**
+         * Calculates Eccentric Quad Braking Energy (Joules per kg per meter) on descents
+         * On grades steeper than -1.5%, muscles perform negative work to absorb gravitational potential energy.
+         */
+        function calculateEccentricBrakingJPerKgM(grade) {
+            if (grade >= -0.015) return 0;
+            const absG = Math.abs(grade);
+            // Gravitational potential energy released is g * sin(theta) ~ 9.81 * absG J/kg/m
+            // Above 2% descent, eccentric quadriceps contraction absorbs a steepening fraction of this energy
+            const brakingFraction = Math.min(0.92, 0.35 + absG * 4.2);
+            return 9.81 * absG * brakingFraction;
+        }
+
+        /**
+         * Biomechanical Stride Cadence (SPM) & Stride Length (m) adaptation for Kaapsehoop slopes
+         */
+        function calculateBiomechanics(speedMps, gradeFraction) {
+            const gradePct = gradeFraction * 100;
+            let cadenceDelta = 0;
+
+            if (gradePct > 0) {
+                // Uphill: shorten stride and increase turnover (~1.0 spm per +1% grade)
+                cadenceDelta = gradePct * 1.0;
+            } else if (gradePct >= -5.0) {
+                // Moderate downhill (-1% to -5%): gravity lengthens flight phase, slight turnover boost
+                cadenceDelta = Math.abs(gradePct) * 0.45;
+            } else {
+                // Steep Berlin Plantation downhill (< -5%): rapid protective turnover to reduce peak eccentric quad force
+                cadenceDelta = 2.25 + (Math.abs(gradePct) - 5.0) * 1.25;
+            }
+
+            const speedShift = (speedMps - 3.3) * 2.0;
+            const cadence = Math.round(Math.max(145, Math.min(215, state.baseCadence + cadenceDelta + speedShift)));
+            const stepLengthMeters = speedMps / (cadence / 60);
+
+            return { cadence, stepLengthMeters };
+        }
+
+        /**
+         * Main Simulation Engine:
+         * Computes elevation, grade, eccentric quad fatigue accumulation, Lowveld thermal drift,
+         * pacing strategy weights, exact target time normalization, and km-by-km split table.
+         */
+        function recalculateSimulation() {
+            const totalMeters = state.distanceKm * 1000;
+            const segMeters = totalMeters / (NUM_NODES - 1);
+            const nodeSpanMeters = totalMeters / NUM_NODES;
+            const grades = new Float32Array(NUM_NODES);
+            const rawSpeedWeights = new Float32Array(NUM_NODES);
+            const cumulativeBrakingKJ = new Float32Array(NUM_NODES);
+
+            let totalAscentM = 0;
+            let totalDescentM = 0;
+            let runningBrakingJoules = 0;
+
+            const thermalEnabled = document.getElementById('thermal-toggle').checked;
+
+            // Pass 1: Compute grades, ascent/descent totals, and cumulative eccentric quad braking work
+            for (let i = 0; i < NUM_NODES; i++) {
+                const currASL = state.elevASL[i];
+                const nextASL = state.elevASL[Math.min(NUM_NODES - 1, i + 1)];
+                const prevASL = state.elevASL[Math.max(0, i - 1)];
+
+                if (i < NUM_NODES - 1) {
+                    const diff = nextASL - currASL;
+                    if (diff > 0) totalAscentM += diff;
+                    else totalDescentM += Math.abs(diff);
+                }
+
+                const spanM = (i === 0 || i === NUM_NODES - 1) ? segMeters : segMeters * 2;
+                const g = (nextASL - prevASL) / spanM;
+                grades[i] = Math.max(-0.35, Math.min(0.35, g));
+
+                // Accumulate eccentric braking work (Joules)
+                // Strategy affects how aggressively the runner hammers the downhills
+                let stratBrakingMult = 1.0;
+                if (state.strategy === 'quadsaver') stratBrakingMult = 0.84; // Controlled downhill saves 16% eccentric shock
+                else if (state.strategy === 'gravity') stratBrakingMult = 1.24; // Hammering early downhills spikes eccentric shock
+
+                const brakingJPerKgM = calculateEccentricBrakingJPerKgM(grades[i]) * stratBrakingMult;
+                runningBrakingJoules += brakingJPerKgM * state.runnerMassKg * nodeSpanMeters;
+                cumulativeBrakingKJ[i] = runningBrakingJoules / 1000;
+            }
+
+            // Reference capacity: ~480 kJ of eccentric work represents severe quad fatigue for a 70kg runner
+            const maxQuadCapacityKJ = state.runnerMassKg * 6.8;
+
+            // Pass 2: Calculate relative speed weights per node incorporating strategy, quad fatigue & Lowveld heat
+            for (let i = 0; i < NUM_NODES; i++) {
+                const g = grades[i];
+                const effortRatio = getGradeSpeedFactor(g);
+                const quadFatigueFrac = Math.min(1.0, cumulativeBrakingKJ[i] / maxQuadCapacityKJ);
+
+                let weight = effortRatio;
+                if (state.strategy === 'quadsaver') {
+                    // Quad Saver: holds back 3.5% on steep descents (< -4.5%) so quads are fresh for the final 5km & Km 19.8 Sting
+                    if (g < -0.045) {
+                        weight = effortRatio * 0.962;
+                    } else if (g > 0.015) {
+                        // Stronger climbing resilience late in the race
+                        weight = effortRatio * 1.035;
+                    }
+                } else if (state.strategy === 'gravity') {
+                    // Aggressive Gravity Assist: pushes hard on downhills (+4.5% faster), but suffers heavier late-race quad fatigue on climbs
+                    if (g < -0.025) {
+                        weight = effortRatio * 1.045;
+                    }
+                } else if (state.strategy === 'pace') {
+                    // Strictly Even Splits: 88% constant speed, 12% terrain compliance
+                    weight = 0.88 + 0.12 * effortRatio;
+                }
+
+                // Dynamic Late-Race Quad Fatigue Penalty on Uphills (especially Km 19.8 Heartbreak Sting!)
+                if (g > 0.01 && state.strategy !== 'pace') {
+                    const climbFatiguePenalty = 1.0 - (quadFatigueFrac * g * 2.6);
+                    weight *= Math.max(0.78, climbFatiguePenalty);
+                }
+
+                // Lowveld Thermal Drift (13°C mist at start -> 26°C humid Mbombela valley floor)
+                if (thermalEnabled && state.strategy !== 'pace') {
+                    const tempC = getNodeTemperatureC(i);
+                    // Above 18°C, each degree C adds ~0.35% cardiovascular drift slowdown
+                    if (tempC > 18.0) {
+                        const heatDrift = 1.0 - ((tempC - 18.0) * 0.0038);
+                        weight *= Math.max(0.92, heatDrift);
+                    }
+                }
+
+                rawSpeedWeights[i] = Math.max(0.30, weight);
+            }
+
+            // Pass 3: Normalize speeds so total integrated time equals state.targetSeconds exactly
+            let unscaledTimeSum = 0;
+            for (let i = 0; i < NUM_NODES; i++) {
+                unscaledTimeSum += nodeSpanMeters / rawSpeedWeights[i];
+            }
+            const scaleK = unscaledTimeSum / Math.max(60, state.targetSeconds);
+
+            state.pointStats = [];
+            let cumulativeSeconds = 0;
+            let totalJoules = 0;
+            let weightedGapSpeedSum = 0;
+
+            for (let i = 0; i < NUM_NODES; i++) {
+                const distMeters = (i / (NUM_NODES - 1)) * totalMeters;
+                const elevASL = state.elevASL[i];
+                const grade = grades[i];
+                const speedMps = scaleK * rawSpeedWeights[i];
+                const segTimeSec = nodeSpanMeters / speedMps;
+                cumulativeSeconds += segTimeSec;
+
+                // Equivalent Flat Speed (GAP)
+                const gapFactor = getGradeSpeedFactor(grade);
+                const gapSpeedMps = speedMps / gapFactor;
+                weightedGapSpeedSum += gapSpeedMps * segTimeSec;
+
+                // Minetti Metabolic Cost
+                const cr = calculateMinettiCr(grade);
+                const segJoules = cr * state.runnerMassKg * nodeSpanMeters;
+                totalJoules += segJoules;
+
+                const watts = cr * state.runnerMassKg * speedMps;
+                const kcalPerMin = (watts * 60) / 4184;
+                const bio = calculateBiomechanics(speedMps, grade);
+                const quadFatiguePct = Math.min(100, Math.round((cumulativeBrakingKJ[i] / maxQuadCapacityKJ) * 100));
+                const tempC = getNodeTemperatureC(i);
+
+                state.pointStats.push({
+                    index: i,
+                    distMeters,
+                    elevASL,
+                    grade,
+                    speedMps,
+                    gapSpeedMps,
+                    cr,
+                    kcalPerMin,
+                    segJoules,
+                    segTimeSec,
+                    cumulativeSeconds,
+                    cadence: bio.cadence,
+                    stepLengthMeters: bio.stepLengthMeters,
+                    quadKJ: cumulativeBrakingKJ[i],
+                    quadFatiguePct,
+                    tempC
+                });
+            }
+
+            // Update Left Sidebar Summary Audit Metrics
+            const totalKcal = Math.round(totalJoules / 4184);
+            const avgGapSpeedMps = weightedGapSpeedSum / state.targetSeconds;
+            const flatEquivalentSeconds = totalMeters / avgGapSpeedMps;
+            const gravityDiffSec = state.targetSeconds - flatEquivalentSeconds; // Negative means faster than flat!
+
+            const startASL = Math.round(state.elevASL[0]);
+            const endASL = Math.round(state.elevASL[NUM_NODES - 1]);
+            const netDrop = endASL - startASL;
+
+            document.getElementById('stat-gain').textContent = `+${Math.round(totalAscentM)}m`;
+            document.getElementById('stat-loss').textContent = `-${Math.round(totalDescentM)}m`;
+            document.getElementById('stat-net-drop').textContent = `${netDrop >= 0 ? '+' : ''}${netDrop}m (${startASL}→${endASL}m)`;
+            
+            const finalBrakingKJ = Math.round(cumulativeBrakingKJ[NUM_NODES - 1]);
+            document.getElementById('stat-braking-kj').textContent = `${finalBrakingKJ} kJ Absorbed`;
+
+            const finalQuadPct = state.pointStats[NUM_NODES - 1].quadFatiguePct;
+            const domsBadge = document.getElementById('doms-risk-badge');
+            if (finalQuadPct >= 75) {
+                domsBadge.textContent = `SEVERE QUAD LOAD (${finalQuadPct}%)`;
+                domsBadge.className = "text-[10px] font-mono font-bold px-2 py-0.5 rounded bg-rose-500/20 text-rose-300 border border-rose-500/40";
+            } else if (finalQuadPct >= 50) {
+                domsBadge.textContent = `MODERATE QUAD LOAD (${finalQuadPct}%)`;
+                domsBadge.className = "text-[10px] font-mono font-bold px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30";
+            } else {
+                domsBadge.textContent = `CONTROLLED QUAD LOAD (${finalQuadPct}%)`;
+                domsBadge.className = "text-[10px] font-mono font-bold px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/30";
+            }
+
+            const sign = gravityDiffSec <= 0 ? '-' : '+';
+            const absDiff = Math.abs(Math.round(gravityDiffSec));
+            document.getElementById('stat-gravity-bonus').textContent = `${sign}${Math.floor(absDiff / 60)}m ${(absDiff % 60).toString().padStart(2, '0')}s vs Flat`;
+            document.getElementById('stat-gap').textContent = formatPaceFromSpeed(avgGapSpeedMps);
+            document.getElementById('stat-kcal').textContent = `${totalKcal.toLocaleString()} kcal`;
+
+            // Calculate Km 19.8 Sting Slowdown vs average race pace
+            const avgRaceSpeedMps = totalMeters / state.targetSeconds;
+            const stingNodeIdx = Math.min(NUM_NODES - 1, Math.round((19.8 / 21.1) * (NUM_NODES - 1)));
+            const stingSpeed = state.pointStats[stingNodeIdx].speedMps;
+            const stingPaceSec = Math.round(1000 / stingSpeed - 1000 / avgRaceSpeedMps);
+            document.getElementById('sting-penalty-readout').textContent = `${stingPaceSec >= 0 ? '+' : ''}${stingPaceSec} sec/km vs Avg`;
+
+            document.getElementById('avg-pace-badge').textContent = `Avg ${formatPaceFromSpeed(avgRaceSpeedMps)}`;
+            document.getElementById('table-finish-time').textContent = formatHHMMSS(state.targetSeconds);
+
+            buildSplitsTable();
+            updateInspectorUI(state.hoverIndex);
+            drawCanvas();
+        }
+
+        /**
+         * Estimates ambient temperature (°C) along the escarpment descent
+         * 13.0°C cool mist at 1,260m+ escarpment -> 25.8°C humid air in Mbombela (675m)
+         */
+        function getNodeTemperatureC(nodeIdx) {
+            const thermalEnabled = document.getElementById('thermal-toggle').checked;
+            if (!thermalEnabled) return 15.0;
+            const asl = state.elevASL[nodeIdx];
+            const progress = nodeIdx / (NUM_NODES - 1);
+            // Environmental lapse rate + solar warming between 05:30 AM and 07:30 AM
+            const elevDropC = Math.max(0, (1260 - asl) / 100) * 1.15;
+            const sunWarmingC = progress * 5.2;
+            return Math.min(28.5, Math.max(11.0, 13.2 + elevDropC + sunWarmingC));
+        }
+
+        /**
+         * Finds the nearest landmark/sector note for a given kilometer split
+         */
+        function getSectorNoteForKm(startKm, endKm) {
+            const landmarks = COURSE_LANDMARKS[state.presetKey] || COURSE_LANDMARKS.custom;
+            for (const lm of landmarks) {
+                if (lm.km >= startKm - 0.1 && lm.km <= endKm + 0.15) {
+                    return lm.title;
+                }
+            }
+            if (state.presetKey === 'kaapsehoop21') {
+                if (endKm <= 3.0) return "Kaapsehoop Rd Upper Escarpment";
+                if (endKm <= 8.0) return "Berlin Pine Plantation Descent";
+                if (endKm <= 12.5) return "Escarpment Pass Sweep";
+                if (endKm <= 16.5) return "Lowveld R37 Valley Approach";
+                if (endKm <= 19.0) return "N4 / Mataffin Suburban Rollers";
+                return "Mbombela Stadium Approach";
+            }
+            return `Km ${Math.ceil(endKm)} Sector`;
+        }
+
+        /**
+         * Builds the full Km-by-Km Split Table (1 to 21.1 km)
+         */
+        function buildSplitsTable() {
+            const totalMeters = state.distanceKm * 1000;
+            const numSplits = Math.ceil(totalMeters / 1000 - 1e-4);
+            const tbody = document.getElementById('splits-tbody');
+            tbody.innerHTML = '';
+
+            state.splits = [];
+            let elapsedSec = 0;
+
+            for (let s = 0; s < numSplits; s++) {
+                const startM = s * 1000;
+                const endM = Math.min(totalMeters, (s + 1) * 1000);
+                const splitDistM = endM - startM;
+                if (splitDistM < 5) continue;
+
+                const startNode = Math.floor((startM / totalMeters) * (NUM_NODES - 1));
+                const endNode = Math.max(startNode + 1, Math.min(NUM_NODES - 1, Math.round((endM / totalMeters) * (NUM_NODES - 1))));
+
+                const netElevM = state.pointStats[endNode].elevASL - state.pointStats[startNode].elevASL;
+                const avgGradePct = (netElevM / splitDistM) * 100;
+
+                let sumSpeed = 0, sumGap = 0, sumCad = 0, sumStride = 0, sumJoules = 0, count = 0;
+                for (let idx = startNode; idx <= endNode; idx++) {
+                    const pt = state.pointStats[idx];
+                    sumSpeed += pt.speedMps;
+                    sumGap += pt.gapSpeedMps;
+                    sumCad += pt.cadence;
+                    sumStride += pt.stepLengthMeters;
+                    sumJoules += pt.segJoules;
+                    count++;
+                }
+
+                const avgSpeedMps = sumSpeed / count;
+                const avgGapMps = sumGap / count;
+                const splitTimeSec = splitDistM / avgSpeedMps;
+                elapsedSec += splitTimeSec;
+
+                const splitKcal = Math.round((sumJoules / count) * (splitDistM / (totalMeters / NUM_NODES)) / 4184);
+                const avgCadence = Math.round(sumCad / count);
+                const avgStride = (sumStride / count).toFixed(2);
+                const quadPct = state.pointStats[endNode].quadFatiguePct;
+
+                const isPartial = splitDistM < 950;
+                const kmLabel = isPartial ? (endM / 1000).toFixed(1) : `${s + 1}`;
+                const sectorTitle = getSectorNoteForKm(startM / 1000, endM / 1000);
+
+                const splitObj = {
+                    index: s,
+                    kmLabel,
+                    sectorTitle,
+                    startNode,
+                    endNode,
+                    netElevM,
+                    avgGradePct,
+                    avgSpeedMps,
+                    avgGapMps,
+                    avgCadence,
+                    avgStride,
+                    splitKcal,
+                    quadPct,
+                    elapsedSec
+                };
+                state.splits.push(splitObj);
+
+                const tr = document.createElement('tr');
+                tr.onclick = () => {
+                    state.selectedSplitIdx = (state.selectedSplitIdx === s) ? -1 : s;
+                    const midNode = Math.round((startNode + endNode) / 2);
+                    state.hoverIndex = midNode;
+                    updateInspectorUI(midNode);
+                    drawCanvas();
+                    highlightSelectedSplitRow();
+                };
+
+                const elevStr = (netElevM >= 0 ? '+' : '') + Math.round(netElevM) + 'm';
+                const gradeStr = (avgGradePct >= 0 ? '+' : '') + avgGradePct.toFixed(1) + '%';
+                const gradeColor = avgGradePct > 1.8 ? 'text-rose-400 font-semibold' : (avgGradePct < -4.5 ? 'text-purple-400 font-semibold' : (avgGradePct < -1.5 ? 'text-cyan-400' : 'text-emerald-400'));
+
+                // Quad Load Badge per Split
+                let quadBadge = `<span class="px-1.5 py-0.5 rounded bg-emerald-500/15 text-emerald-300 text-[10px]">${quadPct}% Low</span>`;
+                if (avgGradePct < -4.8) {
+                    quadBadge = `<span class="px-1.5 py-0.5 rounded bg-purple-500/25 text-purple-300 border border-purple-500/40 text-[10px] font-semibold">${quadPct}% Braking!</span>`;
+                } else if (quadPct >= 65) {
+                    quadBadge = `<span class="px-1.5 py-0.5 rounded bg-rose-500/20 text-rose-300 text-[10px]">${quadPct}% High</span>`;
+                } else if (quadPct >= 35) {
+                    quadBadge = `<span class="px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 text-[10px]">${quadPct}% Mod</span>`;
+                }
+
+                tr.innerHTML = `
+                    <td class="py-2 px-2.5 font-bold text-white">${kmLabel}</td>
+                    <td class="py-2 px-2.5 text-slate-300 font-sans text-[11px] truncate max-w-[175px]" title="${sectorTitle}">${sectorTitle}</td>
+                    <td class="py-2 px-2.5 ${gradeColor}">${elevStr}</td>
+                    <td class="py-2 px-2.5 ${gradeColor}">${gradeStr}</td>
+                    <td class="py-2 px-2.5 text-sky-300 font-bold">${formatPaceFromSpeed(avgSpeedMps)}</td>
+                    <td class="py-2 px-2.5 text-indigo-300">${formatPaceFromSpeed(avgGapMps)}</td>
+                    <td class="py-2 px-2.5 text-emerald-300">${avgCadence} / ${avgStride}m</td>
+                    <td class="py-2 px-2.5 text-amber-300">${splitKcal}</td>
+                    <td class="py-2 px-2.5">${quadBadge}</td>
+                    <td class="py-2 px-2.5 text-right text-slate-200 font-semibold">${formatHHMMSS(elapsedSec)}</td>
+                `;
+                tbody.appendChild(tr);
+            }
+
+            document.getElementById('split-count-badge').textContent = `${state.distanceKm.toFixed(1)} km (${state.splits.length} Splits)`;
+            highlightSelectedSplitRow();
+        }
+
+        function highlightSelectedSplitRow() {
+            const rows = document.getElementById('splits-tbody').children;
+            for (let i = 0; i < rows.length; i++) {
+                if (i === state.selectedSplitIdx) {
+                    rows[i].className = "bg-sky-500/20 border-l-2 border-sky-400 cursor-pointer transition";
+                } else {
+                    rows[i].className = "hover:bg-slate-800/70 cursor-pointer transition";
+                }
+            }
+        }
+
+        /**
+         * Updates the Real-Time Telemetry Inspector & Biomechanical Quad Response Panel
+         */
+        function updateInspectorUI(idx) {
+            const safeIdx = Math.max(0, Math.min(NUM_NODES - 1, idx));
+            const pt = state.pointStats[safeIdx];
+            if (!pt) return;
+
+            const kmVal = (pt.distMeters / 1000).toFixed(2);
+            const gradePct = pt.grade * 100;
+            const gradeStr = (gradePct >= 0 ? '+' : '') + gradePct.toFixed(1) + '%';
+
+            // Find nearest landmark pill
+            const landmarks = COURSE_LANDMARKS[state.presetKey] || COURSE_LANDMARKS.custom;
+            let closestLm = landmarks[0];
+            let minDist = Infinity;
+            for (const lm of landmarks) {
+                const d = Math.abs(lm.km - (pt.distMeters / 1000));
+                if (d < minDist) {
+                    minDist = d;
+                    closestLm = lm;
+                }
+            }
+
+            document.getElementById('insp-dist').textContent = `${kmVal} km`;
+            document.getElementById('insp-elev').textContent = `${Math.round(pt.elevASL).toLocaleString()} m`;
+
+            const gradeEl = document.getElementById('insp-grade');
+            gradeEl.textContent = gradeStr;
+            gradeEl.className = 'font-mono text-xs sm:text-sm font-bold ' + 
+                (gradePct > 2 ? 'text-rose-400' : (gradePct < -5 ? 'text-purple-400' : (gradePct < -2 ? 'text-cyan-400' : 'text-emerald-400')));
+
+            document.getElementById('insp-pace').textContent = formatPaceFromSpeed(pt.speedMps);
+            document.getElementById('insp-gap').textContent = formatPaceFromSpeed(pt.gapSpeedMps);
+            document.getElementById('insp-cr').textContent = `${pt.cr.toFixed(2)} J/kg/m`;
+            document.getElementById('insp-stride').textContent = `${pt.cadence} / ${pt.stepLengthMeters.toFixed(2)}m`;
+            document.getElementById('insp-quad-temp').textContent = `${pt.quadFatiguePct}% • ${pt.tempC.toFixed(1)}°C`;
+
+            // Update Biomechanical Reference Gauge
+            document.getElementById('landmark-pill').textContent = closestLm.short;
+            document.getElementById('gauge-quad').textContent = `${pt.quadFatiguePct}% Capacity (${Math.round(pt.quadKJ)} kJ)`;
+            document.getElementById('bar-quad').style.width = `${Math.max(4, pt.quadFatiguePct)}%`;
+
+            const cadDiff = pt.cadence - state.baseCadence;
+            document.getElementById('gauge-cadence').textContent = `${cadDiff >= 0 ? '+' : ''}${cadDiff} spm (${pt.cadence} spm)`;
+            document.getElementById('bar-cadence').style.width = `${Math.max(10, Math.min(100, 50 + cadDiff * 2.5))}%`;
+
+            const flatSpeed = (state.distanceKm * 1000) / state.targetSeconds;
+            const flatStride = flatSpeed / (state.baseCadence / 60);
+            const stridePctDiff = Math.round(((pt.stepLengthMeters - flatStride) / flatStride) * 100);
+            document.getElementById('gauge-stride').textContent = `${pt.stepLengthMeters.toFixed(2)} m (${stridePctDiff >= 0 ? '+' : ''}${stridePctDiff}%)`;
+            document.getElementById('bar-stride').style.width = `${Math.max(10, Math.min(100, 50 + stridePctDiff * 1.4))}%`;
+
+            const flatCr = 3.6 * state.economyFactor;
+            const crMult = (pt.cr / flatCr).toFixed(2);
+            document.getElementById('gauge-metabolic').textContent = `${crMult}x Flat Cost`;
+            document.getElementById('bar-metabolic').style.width = `${Math.max(8, Math.min(100, (pt.cr / 10.5) * 100))}%`;
+
+            const vo2 = ((pt.cr * pt.speedMps * 60) / 20.1) + 3.5;
+            document.getElementById('vo2-readout').textContent = `${vo2.toFixed(1)} ml/kg/min`;
+            document.getElementById('power-readout').textContent = `${pt.kcalPerMin.toFixed(1)} kcal/min`;
+
+            // Slope Arrow & Regime Coaching Advice
+            const arrow = document.getElementById('slope-arrow-svg');
+            const angleDeg = Math.max(-35, Math.min(35, -gradePct * 2.1));
+            arrow.style.transform = `rotate(${angleDeg}deg)`;
+
+            const rTitle = document.getElementById('regime-title');
+            const rTip = document.getElementById('regime-tip');
+            if (gradePct < -5.0) {
+                rTitle.textContent = 'Steep Escarpment Braking Zone';
+                rTitle.className = 'text-sm font-bold text-purple-400';
+                rTip.textContent = 'High eccentric quad load! Avoid heel-strike overstriding; keep quick ~180+ spm steps.';
+            } else if (gradePct < -2.0) {
+                rTitle.textContent = 'Fast Gravity-Assisted Drop';
+                rTitle.className = 'text-sm font-bold text-cyan-400';
+                rTip.textContent = 'Slight forward lean from ankles; bank free speed at low metabolic cost.';
+            } else if (gradePct > 3.0) {
+                rTitle.textContent = 'Heartbreak Sting / Roller Climb';
+                rTitle.className = 'text-sm font-bold text-rose-400';
+                rTip.textContent = 'Shorten stride, drive arms, recruit glutes & calves to relieve fatigued quads.';
+            } else {
+                rTitle.textContent = 'Lowveld Valley Transition';
+                rTitle.className = 'text-sm font-bold text-emerald-400';
+                rTip.textContent = 'Settle into rhythmic race pace; take fluids/ice at aid stations as humidity rises.';
+            }
+        }
+
+        /**
+         * Renders the Interactive HTML5 Canvas:
+         * - Altitude ASL grid (650m to 1,300m+ ASL)
+         * - Color-coded slope fill (Purple = Steep eccentric braking, Cyan = Fast descent, Emerald = Flat, Rose = Climb)
+         * - Pinned Kaapsehoop Landmark Waypoints
+         * - Real-time Pace Curve Overlay
+         * - Interactive Scrub Crosshair & Ghost Pacer
+         */
+        function drawCanvas() {
+            const rect = canvas.parentElement.getBoundingClientRect();
+            const dpr = window.devicePixelRatio || 1;
+            if (canvas.width !== Math.floor(rect.width * dpr) || canvas.height !== Math.floor(rect.height * dpr)) {
+                canvas.width = Math.floor(rect.width * dpr);
+                canvas.height = Math.floor(rect.height * dpr);
+            }
+
+            ctx.save();
+            ctx.scale(dpr, dpr);
+
+            const W = rect.width;
+            const H = rect.height;
+            const padL = 52;
+            const padR = 54;
+            const padT = 36;
+            const padB = 32;
+            const plotW = W - padL - padR;
+            const plotH = H - padT - padB;
+
+            ctx.clearRect(0, 0, W, H);
+
+            const elevSpan = Math.max(100, state.maxElevASL - state.minElevASL);
+            const aslToY = (asl) => padT + plotH * (1 - (asl - state.minElevASL) / elevSpan);
+
+            // 1. Draw Horizontal Altitude ASL Grid Lines
+            ctx.strokeStyle = 'rgba(51, 65, 85, 0.45)';
+            ctx.fillStyle = '#64748b';
+            ctx.font = '11px "JetBrains Mono", monospace';
+            ctx.lineWidth = 1;
+
+            for (let g = 0; g <= 4; g++) {
+                const frac = g / 4;
+                const y = padT + plotH * (1 - frac);
+                ctx.beginPath();
+                ctx.moveTo(padL, y);
+                ctx.lineTo(padL + plotW, y);
+                ctx.stroke();
+
+                const aslLabel = Math.round(state.minElevASL + frac * elevSpan);
+                ctx.textAlign = 'right';
+                ctx.fillText(`${aslLabel}m`, padL - 6, y + 4);
+            }
+
+            // 2. Highlight Selected Split Region
+            if (state.selectedSplitIdx >= 0 && state.splits[state.selectedSplitIdx]) {
+                const sp = state.splits[state.selectedSplitIdx];
+                const x1 = padL + (sp.startNode / (NUM_NODES - 1)) * plotW;
+                const x2 = padL + (sp.endNode / (NUM_NODES - 1)) * plotW;
+                ctx.fillStyle = 'rgba(56, 189, 248, 0.12)';
+                ctx.fillRect(x1, padT, x2 - x1, plotH);
+                ctx.strokeStyle = 'rgba(56, 189, 248, 0.45)';
+                ctx.strokeRect(x1, padT, x2 - x1, plotH);
+            }
+
+            // 3. Draw Color-Coded Slope Segments Underneath Escarpment Curve
+            for (let i = 0; i < NUM_NODES - 1; i++) {
+                const x1 = padL + (i / (NUM_NODES - 1)) * plotW;
+                const x2 = padL + ((i + 1) / (NUM_NODES - 1)) * plotW;
+                const y1 = aslToY(state.elevASL[i]);
+                const y2 = aslToY(state.elevASL[i + 1]);
+
+                const gradePct = state.pointStats[i] ? state.pointStats[i].grade * 100 : 0;
+                let fillCol = 'rgba(16, 185, 129, 0.24)'; // Emerald flat/mild
+                let strokeCol = '#10b981';
+
+                if (gradePct < -5.0) {
+                    fillCol = 'rgba(168, 85, 247, 0.30)'; // Purple steep eccentric braking warning
+                    strokeCol = '#c084fc';
+                } else if (gradePct < -2.0) {
+                    fillCol = 'rgba(34, 211, 238, 0.24)'; // Cyan fast descent
+                    strokeCol = '#22d3ee';
+                } else if (gradePct > 2.0) {
+                    fillCol = 'rgba(244, 63, 94, 0.32)';  // Rose uphill sting
+                    strokeCol = '#fb7185';
+                }
+
+                ctx.beginPath();
+                ctx.moveTo(x1, y1);
+                ctx.lineTo(x2, y2);
+                ctx.lineTo(x2, padT + plotH);
+                ctx.lineTo(x1, padT + plotH);
+                ctx.closePath();
+                ctx.fillStyle = fillCol;
+                ctx.fill();
+
+                ctx.beginPath();
+                ctx.moveTo(x1, y1);
+                ctx.lineTo(x2, y2);
+                ctx.strokeStyle = strokeCol;
+                ctx.lineWidth = 2.6;
+                ctx.stroke();
+            }
+
+            // 4. Draw Distance X-Axis Tick Marks
+            const totalKm = state.distanceKm;
+            const tickStepKm = totalKm > 30 ? 5 : (totalKm > 15 ? 2 : 1);
+            ctx.textAlign = 'center';
+            ctx.fillStyle = '#94a3b8';
+            ctx.font = '11px "JetBrains Mono", monospace';
+
+            for (let k = 0; k <= Math.floor(totalKm); k += tickStepKm) {
+                const x = padL + (k / totalKm) * plotW;
+                ctx.strokeStyle = 'rgba(71, 85, 105, 0.25)';
+                ctx.lineWidth = 1;
+                ctx.beginPath();
+                ctx.moveTo(x, padT);
+                ctx.lineTo(x, padT + plotH);
+                ctx.stroke();
+                ctx.fillText(`${k}km`, x, H - 10);
+            }
+
+            // 5. Draw Target Pace Overlay Curve (Dashed Sky-Blue Curve)
+            if (state.pointStats.length > 0) {
+                let minSpeed = Infinity, maxSpeed = -Infinity;
+                for (let i = 0; i < NUM_NODES; i++) {
+                    const s = state.pointStats[i].speedMps;
+                    if (s < minSpeed) minSpeed = s;
+                    if (s > maxSpeed) maxSpeed = s;
+                }
+                const speedSpan = Math.max(0.4, maxSpeed - minSpeed);
+
+                ctx.beginPath();
+                for (let i = 0; i < NUM_NODES; i++) {
+                    const x = padL + (i / (NUM_NODES - 1)) * plotW;
+                    const normSpeed = (state.pointStats[i].speedMps - minSpeed) / speedSpan;
+                    const y = padT + plotH * (0.84 - normSpeed * 0.62);
+                    if (i === 0) ctx.moveTo(x, y);
+                    else ctx.lineTo(x, y);
+                }
+                ctx.strokeStyle = 'rgba(56, 189, 248, 0.85)';
+                ctx.lineWidth = 1.75;
+                ctx.setLineDash([4, 3]);
+                ctx.stroke();
+                ctx.setLineDash([]);
+
+                ctx.fillStyle = '#38bdf8';
+                ctx.textAlign = 'left';
+                ctx.fillText(formatPaceFromSpeed(maxSpeed).replace(' /km', ''), padL + plotW + 6, padT + plotH * 0.22 + 4);
+                ctx.fillText(formatPaceFromSpeed(minSpeed).replace(' /km', ''), padL + plotW + 6, padT + plotH * 0.84 + 4);
+            }
+
+            // 6. Draw Authentic Kaapsehoop Landmark Waypoint Pins
+            const landmarks = COURSE_LANDMARKS[state.presetKey] || COURSE_LANDMARKS.custom;
+            landmarks.forEach((lm, idx) => {
+                const frac = Math.min(1, Math.max(0, lm.km / state.distanceKm));
+                const nodeIdx = Math.round(frac * (NUM_NODES - 1));
+                const lx = padL + frac * plotW;
+                const ly = aslToY(state.elevASL[nodeIdx]);
+
+                // Vertical dashed pin line
+                ctx.strokeStyle = 'rgba(251, 191, 36, 0.45)';
+                ctx.lineWidth = 1;
+                ctx.setLineDash([2, 2]);
+                ctx.beginPath();
+                ctx.moveTo(lx, ly - 18);
+                ctx.lineTo(lx, ly);
+                ctx.stroke();
+                ctx.setLineDash([]);
+
+                // Marker diamond/circle on curve
+                ctx.beginPath();
+                ctx.arc(lx, ly, 4, 0, Math.PI * 2);
+                ctx.fillStyle = lm.km === 19.8 ? '#f43f5e' : '#fbbf24';
+                ctx.fill();
+                ctx.strokeStyle = '#0f172a';
+                ctx.lineWidth = 1.5;
+                ctx.stroke();
+
+                // Stagger label height slightly to prevent overlap
+                const labelY = Math.max(14, ly - (idx % 2 === 0 ? 22 : 34));
+                ctx.font = '600 10px "Inter", sans-serif';
+                const labelW = ctx.measureText(lm.short).width + 10;
+                const clampedX = Math.max(padL + labelW / 2, Math.min(padL + plotW - labelW / 2, lx));
+
+                ctx.fillStyle = 'rgba(15, 23, 42, 0.88)';
+                ctx.strokeStyle = lm.km === 19.8 ? 'rgba(244, 63, 94, 0.7)' : 'rgba(251, 191, 36, 0.55)';
+                ctx.beginPath();
+                ctx.roundRect(clampedX - labelW / 2, labelY - 11, labelW, 15, 4);
+                ctx.fill();
+                ctx.stroke();
+
+                ctx.fillStyle = lm.km === 19.8 ? '#fda4af' : '#fde68a';
+                ctx.textAlign = 'center';
+                ctx.fillText(lm.short, clampedX, labelY);
+            });
+
+            // 7. Draw Active Hover Scrub Crosshair & Floating Telemetry Pill
+            const activeIdx = state.simRunning ? Math.floor(state.simProgressIndex) : state.hoverIndex;
+            if (activeIdx >= 0 && activeIdx < NUM_NODES && state.pointStats[activeIdx]) {
+                const pt = state.pointStats[activeIdx];
+                const cx = padL + (activeIdx / (NUM_NODES - 1)) * plotW;
+                const cy = aslToY(pt.elevASL);
+
+                ctx.strokeStyle = 'rgba(226, 232, 240, 0.65)';
+                ctx.lineWidth = 1;
+                ctx.beginPath();
+                ctx.moveTo(cx, padT);
+                ctx.lineTo(cx, padT + plotH);
+                ctx.stroke();
+
+                ctx.beginPath();
+                ctx.arc(cx, cy, 6.5, 0, Math.PI * 2);
+                ctx.fillStyle = state.simRunning ? '#10b981' : '#38bdf8';
+                ctx.fill();
+                ctx.lineWidth = 2;
+                ctx.strokeStyle = '#0f172a';
+                ctx.stroke();
+
+                const gradePct = (pt.grade * 100).toFixed(1);
+                const sign = pt.grade >= 0 ? '+' : '';
+                const kmStr = (pt.distMeters / 1000).toFixed(1) + 'km';
+                const hudText = `${kmStr} • ${Math.round(pt.elevASL)}m (${sign}${gradePct}%) • ${formatPaceFromSpeed(pt.speedMps)} • Quad ${pt.quadFatiguePct}%`;
+
+                ctx.font = 'bold 11px "JetBrains Mono", monospace';
+                const textW = ctx.measureText(hudText).width + 18;
+                const boxX = Math.max(padL + 4, Math.min(padL + plotW - textW - 4, cx - textW / 2));
+                const boxY = Math.min(padT + plotH - 28, Math.max(padT + 4, cy + 14));
+
+                ctx.fillStyle = 'rgba(9, 14, 26, 0.94)';
+                ctx.strokeStyle = 'rgba(56, 189, 248, 0.75)';
+                ctx.lineWidth = 1.2;
+                ctx.beginPath();
+                ctx.roundRect(boxX, boxY, textW, 22, 6);
+                ctx.fill();
+                ctx.stroke();
+
+                ctx.fillStyle = '#f8fafc';
+                ctx.textAlign = 'center';
+                ctx.fillText(hudText, boxX + textW / 2, boxY + 15);
+            }
+
+            ctx.restore();
+        }
+
+        /**
+         * Interactive Canvas Terrain Sculpting (Click & Drag to Edit Elevation)
+         */
+        function getCanvasPointerPos(evt) {
+            const rect = canvas.getBoundingClientRect();
+            const clientX = evt.touches ? evt.touches[0].clientX : evt.clientX;
+            const clientY = evt.touches ? evt.touches[0].clientY : evt.clientY;
+            const padL = 52, padR = 54, padT = 36, padB = 32;
+            const plotW = rect.width - padL - padR;
+            const plotH = rect.height - padT - padB;
+
+            const normX = Math.max(0, Math.min(1, (clientX - rect.left - padL) / plotW));
+            const normY = Math.max(0.02, Math.min(0.98, 1 - (clientY - rect.top - padT) / plotH));
+            const nodeIdx = Math.round(normX * (NUM_NODES - 1));
+            const targetASL = state.minElevASL + normY * (state.maxElevASL - state.minElevASL);
+
+            return { nodeIdx, targetASL };
+        }
+
+        function applyBrushStroke(centerIdx, targetASL) {
+            const radius = parseInt(document.getElementById('brush-size').value, 10);
+            for (let i = Math.max(0, centerIdx - radius); i <= Math.min(NUM_NODES - 1, centerIdx + radius); i++) {
+                const dist = Math.abs(i - centerIdx);
+                const influence = 0.5 * (1 + Math.cos((dist / (radius + 1)) * Math.PI));
+                state.elevASL[i] = state.elevASL[i] * (1 - influence * 0.65) + targetASL * (influence * 0.65);
+                state.elevASL[i] = Math.max(state.minElevASL + 10, Math.min(state.maxElevASL - 10, state.elevASL[i]));
+            }
+        }
+
+        function handlePointerDown(evt) {
+            if (state.simRunning) toggleGhostSimulation();
+            state.isDrawing = true;
+            const { nodeIdx, targetASL } = getCanvasPointerPos(evt);
+            state.lastDrawIndex = nodeIdx;
+            state.lastDrawASL = targetASL;
+            state.hoverIndex = nodeIdx;
+            applyBrushStroke(nodeIdx, targetASL);
+            recalculateSimulation();
+        }
+
+        function handlePointerMove(evt) {
+            const { nodeIdx, targetASL } = getCanvasPointerPos(evt);
+            state.hoverIndex = nodeIdx;
+
+            if (state.isDrawing) {
+                const steps = Math.max(1, Math.abs(nodeIdx - state.lastDrawIndex));
+                for (let s = 0; s <= steps; s++) {
+                    const t = s / steps;
+                    const interpIdx = Math.round(state.lastDrawIndex + t * (nodeIdx - state.lastDrawIndex));
+                    const interpASL = state.lastDrawASL + t * (targetASL - state.lastDrawASL);
+                    applyBrushStroke(interpIdx, interpASL);
+                }
+                state.lastDrawIndex = nodeIdx;
+                state.lastDrawASL = targetASL;
+                recalculateSimulation();
+            } else {
+                updateInspectorUI(nodeIdx);
+                drawCanvas();
+            }
+        }
+
+        function handlePointerUp() {
+            state.isDrawing = false;
+        }
+
+        canvas.addEventListener('mousedown', handlePointerDown);
+        window.addEventListener('mousemove', (e) => {
+            if (e.target === canvas || state.isDrawing) handlePointerMove(e);
+        });
+        window.addEventListener('mouseup', handlePointerUp);
+
+        canvas.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            handlePointerDown(e);
+        }, { passive: false });
+        canvas.addEventListener('touchmove', (e) => {
+            e.preventDefault();
+            handlePointerMove(e);
+        }, { passive: false });
+        canvas.addEventListener('touchend', handlePointerUp);
+
+        /**
+         * Presets, Smoothing, Strategy & Goal Handlers
+         */
+        function loadCoursePreset(presetKey) {
+            state.presetKey = presetKey;
+            state.selectedSplitIdx = -1;
+            const oldDist = state.distanceKm;
+
+            if (presetKey === 'kaapsehoop21') {
+                generateKaapsehoop21Profile();
+                state.hoverIndex = Math.round((4.5 / 21.1) * (NUM_NODES - 1));
+            } else if (presetKey === 'kaapsehoop42') {
+                generateKaapsehoop42Profile();
+                state.hoverIndex = Math.round((25.6 / 42.2) * (NUM_NODES - 1));
+            } else if (presetKey === 'kaapsehoop10') {
+                generateKaapsehoop10Profile();
+                state.hoverIndex = Math.round((3.5 / 10.0) * (NUM_NODES - 1));
+            } else {
+                // Custom rolling profile ready for sketching
+                state.minElevASL = 650;
+                state.maxElevASL = 1300;
+                state.distanceKm = 21.0975;
+                for (let i = 0; i < NUM_NODES; i++) {
+                    const x = i / (NUM_NODES - 1);
+                    state.elevASL[i] = 980 - 220 * x + 90 * Math.sin(x * Math.PI * 4);
+                }
+            }
+
+            // Scale target finish time using Riegel endurance formula when switching distances
+            if (Math.abs(state.distanceKm - oldDist) > 0.5) {
+                const ratio = state.distanceKm / oldDist;
+                state.targetSeconds = Math.round(state.targetSeconds * Math.pow(ratio, 1.06));
+                syncTimeInputsFromSeconds();
+            }
+
+            document.getElementById('distance-readout').textContent = `${state.distanceKm.toFixed(1)} km`;
+            recalculateSimulation();
+        }
+
+        function resetToOfficialProfile() {
+            const select = document.getElementById('course-preset-select');
+            if (select.value === 'custom') {
+                select.value = 'kaapsehoop21';
+            }
+            loadCoursePreset(select.value);
+        }
+
+        function smoothTerrain() {
+            const copy = new Float32Array(state.elevASL);
+            for (let pass = 0; pass < 2; pass++) {
+                for (let i = 1; i < NUM_NODES - 1; i++) {
+                    state.elevASL[i] = 0.25 * copy[i - 1] + 0.50 * copy[i] + 0.25 * copy[i + 1];
+                }
+                copy.set(state.elevASL);
+            }
+            recalculateSimulation();
+        }
+
+        function setGoalPreset(halfMarathonSeconds, btnId) {
+            // Scale from 21.1km base preset to whatever distance is currently loaded
+            const ratio = state.distanceKm / 21.0975;
+            state.targetSeconds = Math.round(halfMarathonSeconds * Math.pow(ratio, 1.06));
+            syncTimeInputsFromSeconds();
+
+            ['sub85', 'sub90', 'sub105', 'sub120', 'sub135'].forEach(id => {
+                const btn = document.getElementById('goal-' + id);
+                if (id === btnId) {
+                    btn.className = "goal-btn py-1.5 px-1 rounded-lg text-[11px] font-mono font-medium bg-sky-500/20 text-sky-300 border border-sky-500/40 transition text-center";
+                } else {
+                    btn.className = "goal-btn py-1.5 px-1 rounded-lg text-[11px] font-mono font-medium bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 transition text-center";
+                }
+            });
+
+            recalculateSimulation();
+        }
+
+        function syncTimeInputsFromSeconds() {
+            const hrs = Math.floor(state.targetSeconds / 3600);
+            const mins = Math.floor((state.targetSeconds % 3600) / 60);
+            const secs = state.targetSeconds % 60;
+            document.getElementById('target-hr').value = hrs;
+            document.getElementById('target-min').value = mins;
+            document.getElementById('target-sec').value = secs;
+        }
+
+        function onTargetTimeInput() {
+            const hrs = Math.max(0, parseInt(document.getElementById('target-hr').value || '0', 10));
+            const mins = Math.max(0, parseInt(document.getElementById('target-min').value || '0', 10));
+            const secs = Math.max(0, parseInt(document.getElementById('target-sec').value || '0', 10));
+            state.targetSeconds = Math.max(60, hrs * 3600 + mins * 60 + secs);
+            recalculateSimulation();
+        }
+
+        function setStrategy(strat) {
+            state.strategy = strat;
+            const descMap = {
+                'quadsaver': 'Protects Quads for Km 19.8 Sting',
+                'effort': 'Constant GAP Metabolic Output',
+                'gravity': 'Aggressive Early Downhill Banking',
+                'pace': 'Strictly Even Kilometer Splits'
+            };
+            document.getElementById('strategy-desc').textContent = descMap[strat];
+
+            ['quadsaver', 'effort', 'gravity', 'pace'].forEach(k => {
+                const btn = document.getElementById('strat-' + k);
+                if (k === strat) {
+                    btn.className = "py-1.5 px-2 rounded-lg text-[11px] font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 transition text-left";
+                } else {
+                    btn.className = "py-1.5 px-2 rounded-lg text-[11px] font-semibold text-slate-300 hover:text-white transition text-left";
+                }
+            });
+
+            recalculateSimulation();
+        }
+
+        function updateBioParams() {
+            state.runnerMassKg = parseFloat(document.getElementById('mass-slider').value);
+            state.baseCadence = parseInt(document.getElementById('cadence-slider').value, 10);
+            state.economyFactor = parseFloat(document.getElementById('economy-slider').value);
+
+            const lbs = Math.round(state.runnerMassKg * 2.20462);
+            document.getElementById('mass-val').textContent = `${state.runnerMassKg} kg (${lbs} lbs)`;
+            document.getElementById('cadence-val').textContent = `${state.baseCadence} spm`;
+
+            let shoeDesc = 'Standard Road Shoe';
+            if (state.economyFactor <= 0.96) shoeDesc = 'Elite Carbon Super-Shoe';
+            else if (state.economyFactor < 1.00) shoeDesc = 'Carbon Super-Shoe';
+            else if (state.economyFactor > 1.04) shoeDesc = 'Heavy / Fatigued Economy';
+            document.getElementById('economy-val').textContent = `${state.economyFactor.toFixed(2)}x (${shoeDesc})`;
+
+            recalculateSimulation();
+        }
+
+        /**
+         * Ghost Pacer Animated Course Traverse
+         */
+        function toggleGhostSimulation() {
+            const btnText = document.getElementById('sim-btn-text');
+            const btn = document.getElementById('sim-btn');
+
+            if (state.simRunning) {
+                state.simRunning = false;
+                if (state.simAnimId) cancelAnimationFrame(state.simAnimId);
+                btnText.textContent = 'Run Ghost Pacer';
+                btn.className = "px-3 py-1.5 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-semibold text-xs transition flex items-center gap-1.5 shadow-lg shadow-emerald-500/20";
+                drawCanvas();
+                return;
+            }
+
+            state.simRunning = true;
+            state.simProgressIndex = 0;
+            btnText.textContent = 'Stop Pacer';
+            btn.className = "px-3 py-1.5 rounded-lg bg-rose-500 hover:bg-rose-400 text-white font-semibold text-xs transition flex items-center gap-1.5 shadow-lg shadow-rose-500/20";
+
+            const avgSpeed = (state.distanceKm * 1000) / state.targetSeconds;
+
+            function stepAnim() {
+                if (!state.simRunning) return;
+                const speedMult = parseFloat(document.getElementById('sim-speed-select').value || '0.85');
+                const currIdx = Math.min(NUM_NODES - 1, Math.floor(state.simProgressIndex));
+                const pt = state.pointStats[currIdx];
+                const relSpeed = pt ? (pt.speedMps / avgSpeed) : 1.0;
+
+                state.simProgressIndex += speedMult * relSpeed;
+                if (state.simProgressIndex >= NUM_NODES - 1) {
+                    state.simProgressIndex = 0;
+                }
+
+                const activeNode = Math.floor(state.simProgressIndex);
+                state.hoverIndex = activeNode;
+                updateInspectorUI(activeNode);
+                drawCanvas();
+
+                state.simAnimId = requestAnimationFrame(stepAnim);
+            }
+
+            state.simAnimId = requestAnimationFrame(stepAnim);
+        }
+
+        function formatPaceFromSpeed(speedMps) {
+            if (!speedMps || speedMps <= 0) return '0:00 /km';
+            const secPerKm = Math.round(1000 / speedMps);
+            const mins = Math.floor(secPerKm / 60);
+            const secs = secPerKm % 60;
+            return `${mins}:${secs.toString().padStart(2, '0')} /km`;
+        }
+
+        function formatHHMMSS(totalSec) {
+            const s = Math.round(totalSec);
+            const hrs = Math.floor(s / 3600);
+            const mins = Math.floor((s % 3600) / 60);
+            const secs = s % 60;
+            return `${hrs.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+        }
+
+        function copySplitsToClipboard() {
+            let csv = `KM Split,Course Sector,Net Elev (m),Avg Grade (%),Target Pace (/km),GAP (/km),Cadence (spm),Stride Length (m),Energy (kcal),Cumulative Quad Load (%),Elapsed Time\n`;
+            state.splits.forEach(sp => {
+                csv += `${sp.kmLabel},"${sp.sectorTitle}",${Math.round(sp.netElevM)},${sp.avgGradePct.toFixed(1)}%,${formatPaceFromSpeed(sp.avgSpeedMps)},${formatPaceFromSpeed(sp.avgGapMps)},${sp.avgCadence},${sp.avgStride},${sp.splitKcal},${sp.quadPct}%,${formatHHMMSS(sp.elapsedSec)}\n`;
+            });
+
+            const textarea = document.createElement('textarea');
+            textarea.value = csv;
+            document.body.appendChild(textarea);
+            textarea.select();
+            document.execCommand('copy');
+            document.body.removeChild(textarea);
+
+            const toast = document.getElementById('toast-msg');
+            toast.style.opacity = '1';
+            setTimeout(() => { toast.style.opacity = '0'; }, 2400);
+        }
+
+        window.addEventListener('resize', () => {
+            drawCanvas();
+        });
+
+        window.onload = function () {
+            loadCoursePreset('kaapsehoop21');
+        };
+    </script>
+</body>
+</html>
